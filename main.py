@@ -2,9 +2,9 @@ import urllib.request
 import json
 import time
 from datetime import datetime
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 import os
+from flask import Flask
 
 # --- CONFIGURACIÓN ---
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFK1f0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3"
@@ -15,28 +15,11 @@ POSICION_ABIERTA = False
 PRECIO_COMPRA = 0.0
 CANTIDAD_BTC = 0.0
 
-# Servidor Web adaptado al puerto de Render
-class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Agente Cripto Operando OK - 24/7")
+app = Flask(__name__)
 
-def iniciar_servidor_web():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
-    server.serve_forever()
-
-def mantener_vivo():
-    time.sleep(30)
-    url = "https://agente-cripto-1.onrender.com"
-    while True:
-        try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            urllib.request.urlopen(req)
-        except Exception:
-            pass
-        time.sleep(600)  # Auto-ping cada 10 minutos
+@app.route('/')
+def home():
+    return "Agente Cripto Operando OK - 24/7", 200
 
 def enviar_discord(mensaje):
     try:
@@ -47,7 +30,7 @@ def enviar_discord(mensaje):
             headers={'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'}
         )
         with urllib.request.urlopen(req) as response:
-            print(f"📩 Alerta enviada a Discord (Código {response.getcode()}).")
+            print(f"📩 Alerta enviada a Discord ({response.getcode()}).")
     except Exception as e:
         print(f"❌ Error al enviar a Discord: {e}")
 
@@ -76,9 +59,9 @@ def ejecutar_agente(contador_ciclos):
         
         print(f"[{hora_str}] 🟢 MONITOREO 24/7 | BTC: ${precio_actual:,.2f} | MA5: ${ma_corta:,.2f} | MA20: ${ma_larga:,.2f}")
         
-        # Enviar reporte a Discord cada 1 hora (240 ciclos de 15 segundos)
-        if contador_ciclos % 240 == 0:
-            msg_reporte = f"📊 **[REPORTE HORARIO 24/7]**\n**BTC/USDT:** ${precio_actual:,.2f}\n**MA5:** ${ma_corta:,.2f} | **MA20:** ${ma_larga:,.2f}\n**Estado Posicion:** {'Abierta' if POSICION_ABIERTA else 'Sin posicion'}"
+        # Enviar un reporte a Discord cada 30 minutos (120 ciclos de 15 segundos)
+        if contador_ciclos % 120 == 0:
+            msg_reporte = f"📊 **[REPORTE ACTIVO 24/7]**\n**BTC/USDT:** ${precio_actual:,.2f}\n**MA5:** ${ma_corta:,.2f} | **MA20:** ${ma_larga:,.2f}\n**Estado:** {'En Posición' if POSICION_ABIERTA else 'Sin Posición'}"
             enviar_discord(msg_reporte)
 
         if ma_corta > ma_larga and not POSICION_ABIERTA:
@@ -98,23 +81,22 @@ def ejecutar_agente(contador_ciclos):
             enviar_discord(msg)
             
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Error en bucle: {e}")
 
 def bucle_agente():
-    enviar_discord("🤖 **Agente Cripto Iniciado: Bucle Activo 24/7.**")
+    time.sleep(5)
+    enviar_discord("🤖 **Agente Cripto Operativo 24/7 en Render.**")
     contador = 0
     while True:
         ejecutar_agente(contador)
         contador += 1
         time.sleep(15)
 
+# Iniciar el bucle en segundo plano antes de la ejecución del servidor
+t = threading.Thread(target=bucle_agente)
+t.daemon = True
+t.start()
+
 if __name__ == "__main__":
-    t1 = threading.Thread(target=iniciar_servidor_web)
-    t1.daemon = True
-    t1.start()
-    
-    t2 = threading.Thread(target=mantener_vivo)
-    t2.daemon = True
-    t2.start()
-    
-    bucle_agente()
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
