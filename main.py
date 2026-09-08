@@ -28,16 +28,15 @@ def iniciar_servidor_web():
     server.serve_forever()
 
 def mantener_vivo():
-    """Hace auto-pings periódicos para evitar que Render suspenda la instancia"""
     time.sleep(30)
-    url = f"https://agente-cripto-1.onrender.com"
+    url = "https://agente-cripto-1.onrender.com"
     while True:
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             urllib.request.urlopen(req)
-        except Exception as e:
+        except Exception:
             pass
-        time.sleep(600)  # Cada 10 minutos
+        time.sleep(600)  # Auto-ping cada 10 minutos
 
 def enviar_discord(mensaje):
     try:
@@ -47,8 +46,8 @@ def enviar_discord(mensaje):
             data=data, 
             headers={'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'}
         )
-        urllib.request.urlopen(req)
-        print("📩 Alerta enviada a Discord.")
+        with urllib.request.urlopen(req) as response:
+            print(f"📩 Alerta enviada a Discord (Código {response.getcode()}).")
     except Exception as e:
         print(f"❌ Error al enviar a Discord: {e}")
 
@@ -63,7 +62,7 @@ def calcular_media_movil(precios, periodo):
         return 0
     return sum(precios[-periodo:]) / periodo
 
-def ejecutar_agente():
+def ejecutar_agente(contador_ciclos):
     global CAPITAL_SIMULADO, POSICION_ABIERTA, PRECIO_COMPRA, CANTIDAD_BTC
     
     hora_str = datetime.now().strftime("%H:%M:%S")
@@ -77,6 +76,11 @@ def ejecutar_agente():
         
         print(f"[{hora_str}] 🟢 MONITOREO 24/7 | BTC: ${precio_actual:,.2f} | MA5: ${ma_corta:,.2f} | MA20: ${ma_larga:,.2f}")
         
+        # Enviar reporte a Discord cada 1 hora (240 ciclos de 15 segundos)
+        if contador_ciclos % 240 == 0:
+            msg_reporte = f"📊 **[REPORTE HORARIO 24/7]**\n**BTC/USDT:** ${precio_actual:,.2f}\n**MA5:** ${ma_corta:,.2f} | **MA20:** ${ma_larga:,.2f}\n**Estado Posicion:** {'Abierta' if POSICION_ABIERTA else 'Sin posicion'}"
+            enviar_discord(msg_reporte)
+
         if ma_corta > ma_larga and not POSICION_ABIERTA:
             POSICION_ABIERTA = True
             PRECIO_COMPRA = precio_actual
@@ -97,21 +101,20 @@ def ejecutar_agente():
         print(f"❌ Error: {e}")
 
 def bucle_agente():
-    enviar_discord("🤖 **Agente Cripto Actualizado: Modo 24/7 Activo.**")
+    enviar_discord("🤖 **Agente Cripto Iniciado: Bucle Activo 24/7.**")
+    contador = 0
     while True:
-        ejecutar_agente()
+        ejecutar_agente(contador)
+        contador += 1
         time.sleep(15)
 
 if __name__ == "__main__":
-    # Inicia el servidor web
     t1 = threading.Thread(target=iniciar_servidor_web)
     t1.daemon = True
     t1.start()
     
-    # Inicia hilo de auto-ping para Render
     t2 = threading.Thread(target=mantener_vivo)
     t2.daemon = True
     t2.start()
     
-    # Inicia el agente
     bucle_agente()
