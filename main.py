@@ -7,7 +7,8 @@ import os
 from flask import Flask
 
 # --- CONFIGURACIÓN ---
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFKlf0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFKlf0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3"
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFK1f0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3"
+
 SYMBOL = "BTCUSDT"
 CAPITAL_SIMULADO = 1000.0
 POSICION_ABIERTA = False
@@ -26,7 +27,7 @@ def enviar_discord(mensaje):
         req = urllib.request.Request(
             DISCORD_WEBHOOK_URL, 
             data=data, 
-            headers={'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'}
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Content-Type': 'application/json'}
         )
         with urllib.request.urlopen(req) as response:
             print(f"📩 Alerta enviada a Discord ({response.getcode()}).")
@@ -35,8 +36,16 @@ def enviar_discord(mensaje):
 
 def obtener_velas(symbol="BTCUSDT", interval="1h", limit=30):
     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    req = urllib.request.urlopen(url)
-    datos = json.loads(req.read().decode())
+    # Se agregan cabeceras de navegador para evitar el bloqueo HTTP Error 451 en Render
+    req = urllib.request.Request(
+        url, 
+        headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json'
+        }
+    )
+    with urllib.request.urlopen(req) as response:
+        datos = json.loads(response.read().decode())
     return [float(vela[4]) for vela in datos]
 
 def calcular_media_movil(precios, periodo):
@@ -58,7 +67,7 @@ def ejecutar_agente(contador_ciclos):
         
         print(f"[{hora_str}] 🟢 MONITOREO 24/7 | BTC: ${precio_actual:,.2f} | MA5: ${ma_corta:,.2f} | MA20: ${ma_larga:,.2f}")
         
-        # Reporte periódico a Discord cada 30 minutos (120 ciclos de 15 segundos)
+        # Reporte a Discord cada 30 minutos (120 ciclos)
         if contador_ciclos % 120 == 0:
             msg_reporte = f"📊 **[REPORTE ACTIVO 24/7]**\n**BTC/USDT:** ${precio_actual:,.2f}\n**MA5:** ${ma_corta:,.2f} | **MA20:** ${ma_larga:,.2f}\n**Estado:** {'En Posición' if POSICION_ABIERTA else 'Sin Posición'}"
             enviar_discord(msg_reporte)
@@ -91,7 +100,7 @@ def bucle_agente():
         contador += 1
         time.sleep(15)
 
-# Iniciar bucle del agente en segundo plano al cargar el módulo
+# Iniciar hilo en segundo plano
 t = threading.Thread(target=bucle_agente)
 t.daemon = True
 t.start()
@@ -99,4 +108,3 @@ t.start()
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-
