@@ -15,7 +15,7 @@ POSICION_ABIERTA = False
 PRECIO_COMPRA = 0.0
 CANTIDAD_BTC = 0.0
 
-# Servidor Web liviano adaptado al puerto de Render
+# Servidor Web adaptado al puerto de Render
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -26,6 +26,18 @@ def iniciar_servidor_web():
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
     server.serve_forever()
+
+def mantener_vivo():
+    """Hace auto-pings periódicos para evitar que Render suspenda la instancia"""
+    time.sleep(30)
+    url = f"https://agente-cripto-1.onrender.com"
+    while True:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            urllib.request.urlopen(req)
+        except Exception as e:
+            pass
+        time.sleep(600)  # Cada 10 minutos
 
 def enviar_discord(mensaje):
     try:
@@ -91,8 +103,15 @@ def bucle_agente():
         time.sleep(15)
 
 if __name__ == "__main__":
-    t = threading.Thread(target=iniciar_servidor_web)
-    t.daemon = True
-    t.start()
+    # Inicia el servidor web
+    t1 = threading.Thread(target=iniciar_servidor_web)
+    t1.daemon = True
+    t1.start()
     
+    # Inicia hilo de auto-ping para Render
+    t2 = threading.Thread(target=mantener_vivo)
+    t2.daemon = True
+    t2.start()
+    
+    # Inicia el agente
     bucle_agente()
