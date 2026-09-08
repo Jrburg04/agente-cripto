@@ -59,7 +59,7 @@ def ejecutar_agente(contador_ciclos):
         
         print(f"[{hora_str}] 🟢 MONITOREO 24/7 | BTC: ${precio_actual:,.2f} | MA5: ${ma_corta:,.2f} | MA20: ${ma_larga:,.2f}")
         
-        # Enviar un reporte a Discord cada 30 minutos (120 ciclos de 15 segundos)
+        # Reporte periódico a Discord cada 30 minutos (120 ciclos de 15 segundos)
         if contador_ciclos % 120 == 0:
             msg_reporte = f"📊 **[REPORTE ACTIVO 24/7]**\n**BTC/USDT:** ${precio_actual:,.2f}\n**MA5:** ${ma_corta:,.2f} | **MA20:** ${ma_larga:,.2f}\n**Estado:** {'En Posición' if POSICION_ABIERTA else 'Sin Posición'}"
             enviar_discord(msg_reporte)
@@ -92,7 +92,7 @@ def bucle_agente():
         contador += 1
         time.sleep(15)
 
-# Iniciar el bucle en segundo plano antes de la ejecución del servidor
+# Iniciar bucle del agente en segundo plano al cargar el módulo
 t = threading.Thread(target=bucle_agente)
 t.daemon = True
 t.start()
