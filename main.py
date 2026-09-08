@@ -7,8 +7,7 @@ import os
 from flask import Flask
 
 # --- CONFIGURACIÓN ---
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFKlf0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFKlf0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3
-
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFKlf0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFKlf0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3"
 SYMBOL = "BTCUSDT"
 CAPITAL_SIMULADO = 1000.0
 POSICION_ABIERTA = False
