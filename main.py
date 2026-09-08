@@ -9,9 +9,6 @@ import os
 # --- CONFIGURACIÓN ---
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFK1f0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3"
 
-HORA_INICIO = 7   # 07:00 AM
-HORA_FIN = 14     # 02:00 PM
-
 SYMBOL = "BTCUSDT"
 CAPITAL_SIMULADO = 1000.0
 POSICION_ABIERTA = False
@@ -23,7 +20,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Agente Cripto Operando OK")
+        self.wfile.write(b"Agente Cripto Operando OK - 24/7")
 
 def iniciar_servidor_web():
     port = int(os.environ.get("PORT", 8080))
@@ -43,10 +40,6 @@ def enviar_discord(mensaje):
     except Exception as e:
         print(f"❌ Error al enviar a Discord: {e}")
 
-def dentro_de_horario():
-    hora_actual = datetime.now().hour
-    return HORA_INICIO <= hora_actual < HORA_FIN
-
 def obtener_velas(symbol="BTCUSDT", interval="1h", limit=30):
     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     req = urllib.request.urlopen(url)
@@ -62,10 +55,6 @@ def ejecutar_agente():
     global CAPITAL_SIMULADO, POSICION_ABIERTA, PRECIO_COMPRA, CANTIDAD_BTC
     
     hora_str = datetime.now().strftime("%H:%M:%S")
-    
-    if not dentro_de_horario():
-        print(f"[{hora_str}] 😴 Fuera de ventana ({HORA_INICIO}:00 a {HORA_FIN}:00 hrs). Pausa...")
-        return
 
     try:
         precios = obtener_velas()
@@ -74,7 +63,7 @@ def ejecutar_agente():
         ma_corta = calcular_media_movil(precios, 5)
         ma_larga = calcular_media_movil(precios, 20)
         
-        print(f"[{hora_str}] 🟢 MERCADO ABIERTO | BTC: ${precio_actual:,.2f}")
+        print(f"[{hora_str}] 🟢 MONITOREO 24/7 | BTC: ${precio_actual:,.2f} | MA5: ${ma_corta:,.2f} | MA20: ${ma_larga:,.2f}")
         
         if ma_corta > ma_larga and not POSICION_ABIERTA:
             POSICION_ABIERTA = True
@@ -96,7 +85,7 @@ def ejecutar_agente():
         print(f"❌ Error: {e}")
 
 def bucle_agente():
-    enviar_discord("🤖 **Agente Cripto Iniciado en la Nube (Render Free).**")
+    enviar_discord("🤖 **Agente Cripto Actualizado: Modo 24/7 Activo.**")
     while True:
         ejecutar_agente()
         time.sleep(15)
@@ -107,4 +96,3 @@ if __name__ == "__main__":
     t.start()
     
     bucle_agente()
-
