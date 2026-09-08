@@ -15,7 +15,7 @@ POSICION_ABIERTA = False
 PRECIO_COMPRA = 0.0
 CANTIDAD_BTC = 0.0
 
-# Servidor Web liviano para requerimiento de Render Web Service
+# Servidor Web liviano adaptado al puerto de Render
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -23,7 +23,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Agente Cripto Operando OK - 24/7")
 
 def iniciar_servidor_web():
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
     server.serve_forever()
 
