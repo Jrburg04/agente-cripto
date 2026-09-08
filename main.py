@@ -7,8 +7,8 @@ import os
 from flask import Flask
 
 # --- CONFIGURACIÓN ---
-# Si sigue dando error 401, genera un Webhook nuevo en Discord y pégalo aquí
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546424832298717236/aV6u2kss3TsMRiMT_-udFK1f0iBosNd1JBe0sGGa04jBokrGJSrIXo3M45qlmoD8Shp3"
+# Reemplaza esta URL con la que acabas de copiar de Discord
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546967622430494731/WnGU3R9VKufDG7GjC5bZsxdoP35B7F4puoZ9BOc4xMU_tZ-I7XA_6QxFy9V_w9B-8P4S"
 
 CAPITAL_SIMULADO = 1000.0
 POSICION_ABIERTA = False
@@ -23,32 +23,42 @@ def home():
     return "Agente Cripto Operando OK - 24/7", 200
 
 def enviar_discord(mensaje):
+    if "TU_NUEVA_URL_AQUI" in DISCORD_WEBHOOK_URL:
+        print("⚠️ Pendiente configurar nueva URL de Webhook de Discord.")
+        return
     try:
         data = json.dumps({"content": mensaje}).encode('utf-8')
         req = urllib.request.Request(
             DISCORD_WEBHOOK_URL, 
             data=data, 
-            headers={'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'}
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Content-Type': 'application/json'}
         )
         with urllib.request.urlopen(req) as response:
-            print(f"📩 Alerta enviada a Discord ({response.getcode()}).")
+            print(f"📩 Alerta enviada a Discord (Código {response.getcode()}).")
     except Exception as e:
         print(f"❌ Error al enviar a Discord: {e}")
 
 def obtener_precio_btc():
-    # Proveedor alternativo sin restricciones HTTP 451
-    url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-    req = urllib.request.Request(
-        url, 
-        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-    )
-    with urllib.request.urlopen(req) as response:
-        datos = json.loads(response.read().decode())
-    return float(datos['bitcoin']['usd'])
+    # Intento 1: API pública de Coinbase (sin restricciones de limite estricto)
+    try:
+        url = "https://api.coinbase.com/v2/prices/BTC-USD/spot"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            datos = json.loads(response.read().decode())
+            return float(datos['data']['amount'])
+    except Exception:
+        pass
+
+    # Intento 2: CoinGecko como respaldo
+    url_cg = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+    req_cg = urllib.request.Request(url_cg, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req_cg) as response:
+        datos_cg = json.loads(response.read().decode())
+        return float(datos_cg['bitcoin']['usd'])
 
 def calcular_media_movil(periodo):
     if len(HISTORIAL_PRECIOS) < periodo:
-        return 0
+        return 0.0
     return sum(HISTORIAL_PRECIOS[-periodo:]) / periodo
 
 def ejecutar_agente(contador_ciclos):
@@ -67,7 +77,8 @@ def ejecutar_agente(contador_ciclos):
         
         print(f"[{hora_str}] 🟢 MONITOREO 24/7 | BTC: ${precio_actual:,.2f} | MA5: ${ma_corta:,.2f} | MA20: ${ma_larga:,.2f}")
         
-        if contador_ciclos % 120 == 0:
+        # Reporte cada 60 ciclos (cada 30 minutos con pausas de 30s)
+        if contador_ciclos % 60 == 0:
             msg_reporte = f"📊 **[REPORTE ACTIVO 24/7]**\n**BTC/USDT:** ${precio_actual:,.2f}\n**Estado:** {'En Posición' if POSICION_ABIERTA else 'Sin Posición'}"
             enviar_discord(msg_reporte)
 
@@ -98,7 +109,7 @@ def bucle_agente():
     while True:
         ejecutar_agente(contador)
         contador += 1
-        time.sleep(15)
+        time.sleep(30)  # Pausa de 30s para respetar los limites de la API
 
 # Iniciar hilo secundario
 t = threading.Thread(target=bucle_agente)
