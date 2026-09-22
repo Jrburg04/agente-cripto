@@ -1,117 +1,100 @@
-import urllib.request
-import json
-import time
-from datetime import datetime
-import threading
 import os
+import time
+import json
+import urllib.request
+import threading
+from datetime import datetime
 from flask import Flask
 
 # --- CONFIGURACIÓN ---
-# Reemplaza esta URL con la que acabas de copiar de Discord
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1546967622430494731/WnGU3R9VKufDG7GjC5bZsxdoP35B7F4puoZ9BOc4xMU_tZ-I7XA_6QxFy9V_w9B-8P4S"
+# Reemplaza con la URL de tu Webhook de Discord para Cripto
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/TU_WEBHOOK_CRIPTO_AQUI"
 
-CAPITAL_SIMULADO = 1000.0
-POSICION_ABIERTA = False
-PRECIO_COMPRA = 0.0
-CANTIDAD_BTC = 0.0
-HISTORIAL_PRECIOS = []
+# Pares de criptomonedas a monitorear
+PARES = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
+
+# Estado de posición y saldo simulado por cada moneda
+POSICIONES = {par: False for par in PARES}
+HISTORIAL_PRECIOS = {par: [] for par in PARES}
 
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Agente Cripto Operando OK - 24/7", 200
+    return "Agente Cripto Multimoneda Operando OK - 24/7", 200
 
 def enviar_discord(mensaje):
-    if "TU_NUEVA_URL_AQUI" in DISCORD_WEBHOOK_URL:
-        print("⚠️ Pendiente configurar nueva URL de Webhook de Discord.")
+    if "TU_WEBHOOK_CRIPTO_AQUI" in DISCORD_WEBHOOK_URL:
+        print("⚠️ Pendiente configurar la URL del Webhook de Discord.")
         return
     try:
         data = json.dumps({"content": mensaje}).encode('utf-8')
         req = urllib.request.Request(
-            DISCORD_WEBHOOK_URL, 
-            data=data, 
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Content-Type': 'application/json'}
+            DISCORD_WEBHOOK_URL,
+            data=data,
+            headers={'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json'}
         )
         with urllib.request.urlopen(req) as response:
-            print(f"📩 Alerta enviada a Discord (Código {response.getcode()}).")
+            print(f"📩 Alerta Cripto enviada a Discord ({response.getcode()}).")
     except Exception as e:
         print(f"❌ Error al enviar a Discord: {e}")
 
-def obtener_precio_btc():
-    # Intento 1: API pública de Coinbase (sin restricciones de limite estricto)
-    try:
-        url = "https://api.coinbase.com/v2/prices/BTC-USD/spot"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
-            datos = json.loads(response.read().decode())
-            return float(datos['data']['amount'])
-    except Exception:
-        pass
+def obtener_precio_binance(symbol):
+    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req) as response:
+        data = json.loads(response.read().decode())
+        return float(data['price'])
 
-    # Intento 2: CoinGecko como respaldo
-    url_cg = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-    req_cg = urllib.request.Request(url_cg, headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req_cg) as response:
-        datos_cg = json.loads(response.read().decode())
-        return float(datos_cg['bitcoin']['usd'])
-
-def calcular_media_movil(periodo):
-    if len(HISTORIAL_PRECIOS) < periodo:
+def calcular_media_movil(par, periodo):
+    precios = HISTORIAL_PRECIOS[par]
+    if len(precios) < periodo:
         return 0.0
-    return sum(HISTORIAL_PRECIOS[-periodo:]) / periodo
+    return sum(precios[-periodo:]) / periodo
 
-def ejecutar_agente(contador_ciclos):
-    global CAPITAL_SIMULADO, POSICION_ABIERTA, PRECIO_COMPRA, CANTIDAD_BTC, HISTORIAL_PRECIOS
-    
-    hora_str = datetime.now().strftime("%H:%M:%S")
-
+def analizar_par(par):
+    global POSICIONES, HISTORIAL_PRECIOS
     try:
-        precio_actual = obtener_precio_btc()
-        HISTORIAL_PRECIOS.append(precio_actual)
-        if len(HISTORIAL_PRECIOS) > 50:
-            HISTORIAL_PRECIOS.pop(0)
-
-        ma_corta = calcular_media_movil(5)
-        ma_larga = calcular_media_movil(20)
+        precio_actual = obtener_precio_binance(par)
+        HISTORIAL_PRECIOS[par].append(precio_actual)
         
-        print(f"[{hora_str}] 🟢 MONITOREO 24/7 | BTC: ${precio_actual:,.2f} | MA5: ${ma_corta:,.2f} | MA20: ${ma_larga:,.2f}")
-        
-        # Reporte cada 60 ciclos (cada 30 minutos con pausas de 30s)
-        if contador_ciclos % 60 == 0:
-            msg_reporte = f"📊 **[REPORTE ACTIVO 24/7]**\n**BTC/USDT:** ${precio_actual:,.2f}\n**Estado:** {'En Posición' if POSICION_ABIERTA else 'Sin Posición'}"
-            enviar_discord(msg_reporte)
+        # Mantener un historial de máximo 30 lecturas para el cálculo de medias
+        if len(HISTORIAL_PRECIOS[par]) > 30:
+            HISTORIAL_PRECIOS[par].pop(0)
 
-        if ma_corta > 0 and ma_larga > 0:
-            if ma_corta > ma_larga and not POSICION_ABIERTA:
-                POSICION_ABIERTA = True
-                PRECIO_COMPRA = precio_actual
-                CANTIDAD_BTC = CAPITAL_SIMULADO / precio_actual
-                
-                msg = f"🟢 **[AGENTE - COMPRA]**\n**Par:** BTCUSDT\n**Precio Entrada:** ${PRECIO_COMPRA:,.2f} USDT"
+        ma5 = calcular_media_movil(par, 5)
+        ma20 = calcular_media_movil(par, 20)
+
+        hora_str = datetime.now().strftime("%H:%M:%S")
+        print(f"[{hora_str}] 🪙 {par}: ${precio_actual:,.2f} | MA5: ${ma5:,.2f} | MA20: ${ma20:,.2f}")
+
+        # Evaluar cruce de medias si ya tenemos suficientes datos acumulados
+        if ma5 > 0 and ma20 > 0:
+            # Señal de Compra (Cruce Alcista)
+            if ma5 > ma20 and not POSICIONES[par]:
+                POSICIONES[par] = True
+                msg = f"🚀 **[CRIPTO MULTIMONEDA - SEÑAL DE COMPRA]**\n**Par:** {par}\n**Precio:** ${precio_actual:,.2f} USDT\n**Indicador:** MA5 (${ma5:,.2f}) superó a MA20 (${ma20:,.2f})"
                 enviar_discord(msg)
-                
-            elif ma_corta < ma_larga and POSICION_ABIERTA:
-                CAPITAL_SIMULADO = CANTIDAD_BTC * precio_actual
-                ganancia = CAPITAL_SIMULADO - 1000.0
-                POSICION_ABIERTA = False
-                
-                msg = f"🔴 **[AGENTE - VENTA]**\n**Par:** BTCUSDT\n**Precio Salida:** ${precio_actual:,.2f} USDT\n**Saldo:** ${CAPITAL_SIMULADO:,.2f} USDT (P/L: ${ganancia:,.2f})"
+
+            # Señal de Venta (Cruce Bajista)
+            elif ma5 < ma20 and POSICIONES[par]:
+                POSICIONES[par] = False
+                msg = f"⚠️ **[CRIPTO MULTIMONEDA - SEÑAL DE VENTA]**\n**Par:** {par}\n**Precio:** ${precio_actual:,.2f} USDT\n**Indicador:** MA5 cayó por debajo de MA20"
                 enviar_discord(msg)
-            
+
     except Exception as e:
-        print(f"❌ Error en bucle: {e}")
+        print(f"❌ Error procesando {par}: {e}")
 
 def bucle_agente():
     time.sleep(5)
-    enviar_discord("🤖 **Agente Cripto Operativo 24/7 en Render.**")
-    contador = 0
+    enviar_discord("🪙 **Agente Cripto Multimoneda Activo (BTC, ETH, SOL, BNB).**")
     while True:
-        ejecutar_agente(contador)
-        contador += 1
-        time.sleep(30)  # Pausa de 30s para respetar los limites de la API
+        for par in PARES:
+            analizar_par(par)
+            time.sleep(2)  # Pausa entre cada consulta de moneda
+        
+        time.sleep(30)  # Pausa de 30 segundos entre ciclos completos de revisión
 
-# Iniciar hilo secundario
 t = threading.Thread(target=bucle_agente)
 t.daemon = True
 t.start()
